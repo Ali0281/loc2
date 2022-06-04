@@ -17,6 +17,7 @@ public class MenuController {
         if (dataBase.getCircle() != null) return "We already have a founder";
         if (money < 5000) return "Money is not enough";
         startCircle(username, money - 5000);
+        dataBase.addToMyMoney(5000);
         return "You now own a table";
     }
 

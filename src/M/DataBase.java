@@ -31,7 +31,7 @@ public class DataBase {
     }
 
     public void addToMyMoney(int amount) {
-        myMoney += myMoney;
+        myMoney += amount;
     }
 
     public void addToCircleOwner(int amount) {
