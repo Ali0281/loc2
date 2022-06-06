@@ -32,32 +32,57 @@ public class Main {
         public String invite(Matcher matcher) {
             String sender = matcher.group("sender");
             User user1 = User.findUserByName(sender);
+            if (user1 == null) return "bug";
             String receiver = matcher.group("receiver");
             int money = Integer.parseInt(matcher.group("money"));
             if (User.findUserByName(receiver) != null) return "Username already taken";
             int level = dataBase.getCircle().getLevel(user1);
             while (true) {
                 level++;
-                if (dataBase.getCircle().getTables().size() < level + 1) dataBase.getCircle().createATable();
+                if (dataBase.getCircle().getTables().size() <= level) dataBase.getCircle().createATable();
                 if (dataBase.getCircle().getTables().get(level).getSize() == dataBase.getCircle().getTables().get(level).getUsers().size())
                     continue;
                 dataBase.getCircle().getTables().get(level).getUsers().add(new User(receiver, money * 20 / 100, sender));
                 break;
             }
 
-            dataBase.addToMyMoney(money * 15 / 100);
+            dataBase.addToMyMoney(((float) money) * 15 / 100);
 
-            user1.setMoney(user1.getMoney() + money * 5 / 100);
+            user1.setMoney(user1.getMoney() + ((float) money) * 5 / 100);
             user1.setInvites(user1.getInvites() + 1);
 
-            dataBase.addToCircleOwner(money * 10 / 100);
+            dataBase.addToCircleOwner(((float) money) * 10 / 100);
 
-            dataBase.getCircle().giveMoney(money * 50 / 100, level);
+            dataBase.getCircle().giveMoney(((float) money) * 50 / 100, level);
 
-            /// invites!!
-
+            if (user1.getInvites() >= 5) {
+                promote(user1);
+                user1.setInvites(0);
+            }
 
             return "User added successfully in level " + level;
+        }
+
+        private void promote(User user1) {
+            int level = dataBase.getCircle().getLevel(user1);
+            if (level == 0 || level == 1) return;
+
+            Table lowTable = dataBase.getCircle().getTables().get(level);
+            Table highTable = dataBase.getCircle().getTables().get(level - 1);
+
+            if (highTable.getUsers().size() >= highTable.getSize()) {
+                User worstUser = highTable.getUsers().get(0);
+                for (User user : highTable.getUsers()) {
+                    if (worstUser.getInvites() > user.getInvites()
+                            || (worstUser.getInvites() == user.getInvites()
+                            && worstUser.getMoney() >= user.getMoney())) worstUser = user;
+                }
+                lowTable.getUsers().add(worstUser);
+                highTable.getUsers().remove(worstUser);
+
+            }
+            highTable.getUsers().add(user1);
+            lowTable.getUsers().remove(user1);
         }
 
         public String join(Matcher matcher) {
@@ -68,10 +93,10 @@ public class Main {
             dataBase.getCircle().createATable();
 
             dataBase.getCircle().getTables().get(dataBase.getCircle().getTables().size() - 1).getUsers().add(new User(username, money * 15 / 100));
-            dataBase.addToCircleOwner(money * 10 / 100);
-            dataBase.addToMyMoney(money * 25 / 100);
+            dataBase.addToCircleOwner(((float) money) * 10 / 100);
+            dataBase.addToMyMoney(((float) money) * 25 / 100);
 
-            dataBase.getCircle().giveMoney(money * 50 / 100, level);
+            dataBase.getCircle().giveMoney(((float) money) * 50 / 100, level);
 
             return "User added successfully in level " + level;
         }
@@ -87,7 +112,7 @@ public class Main {
         public String getUsersInALevel(Matcher matcher) {
             int level = Integer.parseInt(matcher.group("level"));
             ArrayList<Table> tables = DataBase.getInstance().getCircle().getTables();
-            if (tables.size() < level + 1) return "No_such_level_found";
+            if (tables.size() <= level) return "No_such_level_found";
             return String.valueOf(tables.get(level).getUsers().size());
         }
 
@@ -101,35 +126,34 @@ public class Main {
         }
 
         public String getFriends(Matcher matcher) {
+            String res = "";
             String username = matcher.group("username");
             User user = User.findUserByName(username);
-            if (user == null) return "No_such_user_found";
-            for (Table table : dataBase.getCircle().getTables()) {
-                if (!table.getUsers().contains(user)) continue;
-                String firstFriend = null;
-                String secondFriend = null;
-
-                int maxSize = table.getSize();
-                int size = table.getUsers().size();
-                int index = table.getUsers().indexOf(user) + 1;
-                int previous = (index - 1 + maxSize) % maxSize;
-                int next = (index + 1) % maxSize;
-
-                if (!(size < previous)) firstFriend = table.getUsers().get(previous).getUsername();
-                if (!(size < next)) secondFriend = table.getUsers().get(next).getUsername();
-                if (firstFriend == null && secondFriend == null) return "No_friend";
-                if (firstFriend == null) return secondFriend;
-                if (secondFriend == null) return firstFriend;
-                return firstFriend + " " + secondFriend;
+            if (user == null) return ("No_such_user_found");
+            for (Table table : DataBase.getInstance().getCircle().getTables()) {
+                if (!(table.getUsers().contains(user))) continue;
+                if (table.getUsers().size() == 1) {
+                    return ("No_friend");
+                } else {
+                    for (int i = 0; i < table.getUsers().size(); i++) {
+                        if (i == table.getUsers().indexOf(user) - 1)
+                            res += (table.getUsers().get(i).getUsername() + " ");
+                        if (i == table.getUsers().indexOf(user) + 1)
+                            res += (table.getUsers().get(i).getUsername());
+                    }
+                    if (table.getUsers().indexOf(user) == table.getUsers().size() - 1)
+                        res += (table.getUsers().get(0).getUsername());
+                    return res;
+                }
             }
-            return "bug";
+            return res;
         }
 
         public String getCredit(Matcher matcher) {
             String username = matcher.group("username");
             User user = User.findUserByName(username);
             if (user == null) return "No_such_user_found";
-            return String.valueOf(user.getMoney());
+            return String.valueOf((int) user.getMoney());
         }
 
         public String getUsersInSameLevel(Matcher matcher) {
@@ -150,7 +174,7 @@ public class Main {
             return res;
         }
 
-        public int getMyProfit() {
+        public float getMyProfit() {
             return dataBase.getMyMoney();
         }
     }
@@ -180,9 +204,9 @@ public class Main {
         }
 
 
-        public void giveMoney(int money, int level) {
+        public void giveMoney(float money, int level) {
             for (int i = 0; i < level; i++) {
-                int thisLevelMoney = money / level / tables.get(i).getUsers().size();
+                float thisLevelMoney = money / level / tables.get(i).getUsers().size();
                 for (User user : tables.get(i).getUsers()) {
                     user.setMoney(user.getMoney() + thisLevelMoney);
                 }
@@ -193,7 +217,7 @@ public class Main {
     public static class DataBase {
         private static DataBase instance;
 
-        private int myMoney = 0;
+        private float myMoney = 0;
         private Circle circle = null;
 
         private DataBase() {
@@ -204,11 +228,11 @@ public class Main {
             return instance;
         }
 
-        public int getMyMoney() {
+        public float getMyMoney() {
             return myMoney;
         }
 
-        public void setMyMoney(int myMoney) {
+        public void setMyMoney(float myMoney) {
             this.myMoney = myMoney;
         }
 
@@ -220,11 +244,11 @@ public class Main {
             this.circle = circle;
         }
 
-        public void addToMyMoney(int amount) {
+        public void addToMyMoney(float amount) {
             myMoney += amount;
         }
 
-        public void addToCircleOwner(int amount) {
+        public void addToCircleOwner(float amount) {
             circle.getTables().get(0).getUsers().get(0).setMoney(circle.getTables().get(0).getUsers().get(0).getMoney() + amount);
         }
     }
@@ -264,16 +288,17 @@ public class Main {
         }
     }
 
+
     public static class User {
         private static ArrayList<String> usernames = new ArrayList<>();
         private static ArrayList<User> users = new ArrayList<>();
 
         private String username;
-        private int money;
+        private float money;
         private String introducerName = null;
         private int invites = 0;
 
-        public User(String username, int money) {
+        public User(String username, float money) {
             this.username = username;
             this.money = money;
 
@@ -281,7 +306,7 @@ public class Main {
             users.add(this);
         }
 
-        public User(String username, int money, String introducerName) {
+        public User(String username, float money, String introducerName) {
             this.username = username;
             this.money = money;
             this.introducerName = introducerName;
@@ -337,11 +362,11 @@ public class Main {
             this.username = username;
         }
 
-        public int getMoney() {
+        public float getMoney() {
             return money;
         }
 
-        public void setMoney(int money) {
+        public void setMoney(float money) {
             this.money = money;
         }
 
@@ -390,25 +415,25 @@ public class Main {
                     System.out.println(menuController.invite(matcher));
                 } else if ((matcher = getCommandMatcher(command, Commands.JOIN.toString())) != null) {
                     System.out.println(menuController.join(matcher));
-                } else if ((matcher = getCommandMatcher(command, Commands.LEVELS_COUNT.toString())) != null) {
+                } else if ((matcher = getCommandMatcher(command, Commands.LEVELS_COUNT.toString())) != null) { // ok
                     System.out.println(menuController.getLevelsCount());
-                } else if ((matcher = getCommandMatcher(command, Commands.USERS_COUNT.toString())) != null) {
+                } else if ((matcher = getCommandMatcher(command, Commands.USERS_COUNT.toString())) != null) { // ok
                     System.out.println(menuController.getUsersCount());
-                } else if ((matcher = getCommandMatcher(command, Commands.USERS_IN_A_LEVEL.toString())) != null) {
+                } else if ((matcher = getCommandMatcher(command, Commands.USERS_IN_A_LEVEL.toString())) != null) {  // ok
                     System.out.println(menuController.getUsersInALevel(matcher));
-                } else if ((matcher = getCommandMatcher(command, Commands.GET_INTRODUCER.toString())) != null) {
+                } else if ((matcher = getCommandMatcher(command, Commands.GET_INTRODUCER.toString())) != null) {  // ok
                     System.out.println(menuController.getIntroducer(matcher));
-                } else if ((matcher = getCommandMatcher(command, Commands.GET_FRIENDS.toString())) != null) {
+                } else if ((matcher = getCommandMatcher(command, Commands.GET_FRIENDS.toString())) != null) { // ok
                     System.out.println(menuController.getFriends(matcher));
-                } else if ((matcher = getCommandMatcher(command, Commands.GET_CREDIT.toString())) != null) {
+                } else if ((matcher = getCommandMatcher(command, Commands.GET_CREDIT.toString())) != null) { // ok
                     System.out.println(menuController.getCredit(matcher));
-                } else if ((matcher = getCommandMatcher(command, Commands.GET_USERS_IN_SAME_LEVEL.toString())) != null) {
+                } else if ((matcher = getCommandMatcher(command, Commands.GET_USERS_IN_SAME_LEVEL.toString())) != null) { // ok
                     System.out.println(menuController.getUsersInSameLevel(matcher));
-                } else if ((matcher = getCommandMatcher(command, Commands.GET_PROFIT.toString())) != null) {
-                    System.out.println(menuController.getMyProfit());
-                } else if ((matcher = getCommandMatcher(command, Commands.END.toString())) != null) {
+                } else if ((matcher = getCommandMatcher(command, Commands.GET_PROFIT.toString())) != null) { // ok
+                    System.out.println((int) menuController.getMyProfit());
+                } else if ((matcher = getCommandMatcher(command, Commands.END.toString())) != null) { // ok
                     break;
-                }else {
+                } else {
                     System.out.println("invalid!");
                 }
             }
